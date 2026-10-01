@@ -6,12 +6,17 @@
         "dev": "next dev",
         "build": "next build",
         "start": "next start",
-        "lint": "next lint"
+        "lint": "next lint",
+        "db:generate": "drizzle-kit generate",
+        "db:push": "drizzle-kit push"
     },
     "dependencies": {
         "@google/generative-ai": "^0.24.1",
+        "@neondatabase/serverless": "^1.1.0",
+        "dotenv": "^18.0.5",
+        "drizzle-orm": "^0.45.3",
         "lucide-react": "^0.468.0",
-        "next": "^14.2.15",
+        "next": "^16.3.8",
         "pdf-lib": "^1.17.1",
         "react": "^18.3.1",
         "react-dom": "^18.3.1"
@@ -21,6 +26,7 @@
         "@types/react": "^18.3.12",
         "@types/react-dom": "^18.3.1",
         "autoprefixer": "^10.4.20",
+        "drizzle-kit": "^0.31.11",
         "postcss": "^8.4.49",
         "tailwindcss": "^3.4.16",
         "typescript": "^5.7.2"
