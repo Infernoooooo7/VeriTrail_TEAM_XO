@@ -84,6 +84,10 @@ export async function injectManifestIntoPdf(
 export async function extractManifestFromPdf(
   pdfBuffer: Buffer
 ): Promise<DocumentManifest | null> {
+  if (pdfBuffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
+    return null;
+  }
+
   try {
     const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
     const rawSubject = pdfDoc.getSubject() || '';

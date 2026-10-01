@@ -132,7 +132,11 @@ export default function VerifyPage() {
       } else if (result.status === 'UNTRACKED' || result.state === 'heuristic') {
         setState('heuristic');
         setComputedHash(result.computedHash || null);
-        await runHeuristic(selected);
+        if (selected.type === 'application/pdf') {
+          await runHeuristic(selected);
+        } else {
+          setGeminiUnavailableMsg('No cryptographic record matched this file. Gemini visual analysis is skipped for non-PDF files.');
+        }
       }
     } catch (err: any) {
       console.error('Verification error:', err);

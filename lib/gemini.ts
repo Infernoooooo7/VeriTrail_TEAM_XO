@@ -183,7 +183,7 @@ You MUST output valid JSON matching this exact JSON schema:
 
   // Models tried in priority order; next model is tried if current is still
   // unavailable after exhausting per-model retries.
-  const modelsToTry = ['gemini-2.5-flash', 'gpt-4.1-nano', 'llama3-8b-instruct'];
+  const modelsToTry = ['gemini-3.8-flash'];
   const MAX_RETRIES = 4; // 1 initial attempt + 3 retries per model
 
   let lastServiceError: GeminiServiceError | null = null;
