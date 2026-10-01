@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { inspectLegacyDocument } from '@/lib/gemini';
+import { inspectLegacyDocument, GeminiServiceError } from '@/lib/gemini';
 
 export async function POST(request: Request) {
   try {
@@ -25,16 +25,33 @@ export async function POST(request: Request) {
     }
 
     const report = await inspectLegacyDocument(buffer, fileName, userPrompt);
-
     return NextResponse.json(report);
-  } catch (error: any) {
-    console.error('Heuristic route error:', error);
+  } catch (error: unknown) {
+    // -----------------------------------------------------------------------
+    // Infrastructure / service-availability error — must NOT be saved or
+    // displayed as a forensic risk score.  Return a distinct 503 payload so
+    // the frontend can show a retry banner instead.
+    // -----------------------------------------------------------------------
+    if (error instanceof GeminiServiceError) {
+      console.warn('[Heuristic API] Gemini service unavailable:', error.message);
+      return NextResponse.json(
+        {
+          serviceUnavailable: true,
+          retryable: error.isTransient,
+          message:
+            'The AI forensic inspection service is temporarily under high demand. Please try again in a moment.',
+        },
+        { status: 503 }
+      );
+    }
+
+    // Application-level error (unexpected)
+    const err = error as Error;
+    console.error('[Heuristic API] Unexpected error:', err);
     return NextResponse.json(
       {
-        riskLevel: 'HIGH',
-        confidenceScore: 50,
-        detectedAnomalies: ['Failed to execute heuristic inspection pipeline'],
-        summary: error.message || 'Inspection failed.',
+        serviceUnavailable: false,
+        message: err.message || 'Inspection failed due to an internal error.',
       },
       { status: 500 }
     );

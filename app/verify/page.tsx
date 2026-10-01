@@ -18,6 +18,7 @@ import {
 import Link from 'next/link';
 import { Dropzone } from '@/components/Dropzone';
 import { HeuristicReport } from '@/components/HeuristicReport';
+import { ServiceUnavailableBanner } from '@/components/ServiceUnavailableBanner';
 import { StatusBanner } from '@/components/StatusBanner';
 import { TrustTimeline } from '@/components/TrustTimeline';
 import type { VerificationState, DocumentManifest, HeuristicReportData } from '@/types';
@@ -34,6 +35,52 @@ export default function VerifyPage() {
   const [computedHash, setComputedHash] = useState<string | null>(null);
   const [heuristicReport, setHeuristicReport] = useState<HeuristicReportData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // System-level AI service availability — kept strictly separate from forensic state
+  const [geminiUnavailable, setGeminiUnavailable] = useState(false);
+  const [geminiUnavailableMsg, setGeminiUnavailableMsg] = useState<string | undefined>();
+  const [retrying, setRetrying] = useState(false);
+
+  /**
+   * Runs the full inspection pipeline for `selected`.
+   * Infrastructure 503 errors are routed to `geminiUnavailable` state and
+   * never stored in `heuristicReport` or any forensic field.
+   */
+  const runHeuristic = async (selected: File) => {
+    setGeminiUnavailable(false);
+    setGeminiUnavailableMsg(undefined);
+    setVerifyingText('No manifest detected. Running Gemini AI visual forensics…');
+
+    const heuristicFormData = new FormData();
+    heuristicFormData.append('file', selected);
+
+    const hResponse = await fetch('/api/heuristic', {
+      method: 'POST',
+      body: heuristicFormData,
+    });
+
+    // -----------------------------------------------------------------------
+    // 503 → system-level banner, not a forensic result
+    // -----------------------------------------------------------------------
+    if (hResponse.status === 503) {
+      const body = await hResponse.json().catch(() => ({}));
+      if (body.serviceUnavailable) {
+        setGeminiUnavailable(true);
+        setGeminiUnavailableMsg(body.message);
+        return; // do NOT touch heuristicReport
+      }
+    }
+
+    if (hResponse.ok) {
+      const hData: HeuristicReportData = await hResponse.json();
+      setHeuristicReport(hData);
+    } else {
+      // Unexpected non-503 failure — show generic error, still not a forensic score
+      setGeminiUnavailable(true);
+      setGeminiUnavailableMsg(
+        'Forensic inspection encountered an unexpected error. No risk score was recorded.'
+      );
+    }
+  };
 
   const inspect = async (selected: File) => {
     setFile(selected);
@@ -46,6 +93,8 @@ export default function VerifyPage() {
     setExpectedHash(null);
     setComputedHash(null);
     setHeuristicReport(null);
+    setGeminiUnavailable(false);
+    setGeminiUnavailableMsg(undefined);
 
     try {
       const formData = new FormData();
@@ -79,30 +128,7 @@ export default function VerifyPage() {
       } else if (result.status === 'UNTRACKED' || result.state === 'heuristic') {
         setState('heuristic');
         setComputedHash(result.computedHash || null);
-
-        // Automatically trigger Gemini 3.8 Flash Heuristic Fallback
-        setVerifyingText('No manifest detected. Running Gemini 3.8 Flash visual forensics...');
-        const heuristicFormData = new FormData();
-        heuristicFormData.append('file', selected);
-
-        const hResponse = await fetch('/api/heuristic', {
-          method: 'POST',
-          body: heuristicFormData,
-        });
-
-        if (hResponse.ok) {
-          const hData: HeuristicReportData = await hResponse.json();
-          setHeuristicReport(hData);
-        } else {
-          setHeuristicReport({
-            riskLevel: 'HIGH',
-            confidenceScore: 50,
-            confidence: 0.5,
-            detectedAnomalies: ['Failed to analyze legacy file with Gemini AI'],
-            signals: ['Heuristic inspection endpoint error'],
-            summary: 'The document lacks a cryptographic manifest and automated AI inspection failed.',
-          });
-        }
+        await runHeuristic(selected);
       }
     } catch (err: any) {
       console.error('Verification error:', err);
@@ -111,6 +137,14 @@ export default function VerifyPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  /** Manual retry after a 503 — only re-runs the heuristic call, not the full pipeline. */
+  const retryHeuristic = async () => {
+    if (!file) return;
+    setRetrying(true);
+    await runHeuristic(file);
+    setRetrying(false);
   };
 
   const reset = () => {
@@ -123,6 +157,9 @@ export default function VerifyPage() {
     setComputedHash(null);
     setHeuristicReport(null);
     setError(null);
+    setGeminiUnavailable(false);
+    setGeminiUnavailableMsg(undefined);
+    setRetrying(false);
   };
 
   return (
@@ -225,8 +262,17 @@ export default function VerifyPage() {
                 </div>
               )}
 
-              {/* Heuristic Gemini AI Fallback Report */}
-              {state === 'heuristic' && heuristicReport && (
+              {/* System-level 503 banner — rendered INSTEAD of any forensic report */}
+              {state === 'heuristic' && geminiUnavailable && (
+                <ServiceUnavailableBanner
+                  onRetry={retryHeuristic}
+                  retrying={retrying}
+                  message={geminiUnavailableMsg}
+                />
+              )}
+
+              {/* Heuristic Gemini AI Fallback Report — only shown on successful AI response */}
+              {state === 'heuristic' && !geminiUnavailable && heuristicReport && (
                 <HeuristicReport report={heuristicReport} />
               )}
 
