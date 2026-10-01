@@ -1,0 +1,3 @@
+import { NextResponse } from 'next/server';
+import { sha256 } from '@/lib/crypto';
+export async function POST(request: Request) { const form = await request.formData(); const file = form.get('file'); if (!(file instanceof File)) return NextResponse.json({ error: 'A PDF is required.' }, { status: 400 }); return NextResponse.json({ state: 'heuristic', digest: sha256(Buffer.from(await file.arrayBuffer())), reason: 'No embedded manifest found.' }); }

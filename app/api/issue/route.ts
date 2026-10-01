@@ -1,0 +1,3 @@
+import { NextResponse } from 'next/server';
+import { sha256 } from '@/lib/crypto';
+export async function POST(request: Request) { const form = await request.formData(); const file = form.get('file'); if (!(file instanceof File)) return NextResponse.json({ error: 'A PDF is required.' }, { status: 400 }); const digest = sha256(Buffer.from(await file.arrayBuffer())); return NextResponse.json({ manifest: { version: '1.0', documentName: file.name, contentDigest: digest, issuedAt: new Date().toISOString(), issuer: 'VeriTrail' }, digest }); }

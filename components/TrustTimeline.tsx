@@ -1,0 +1,4 @@
+import { Check, Fingerprint, FileLock2, ScanSearch } from 'lucide-react';
+const steps = [{ icon: Fingerprint, label: 'Ingest', detail: 'Original bytes' }, { icon: ScanSearch, label: 'Hash', detail: 'SHA-256 digest' }, { icon: FileLock2, label: 'Sign', detail: 'Ed25519 proof' }, { icon: Check, label: 'Verify', detail: 'Tamper evident' }];
+
+export function TrustTimeline() { return <div className="flex w-full items-start justify-between">{steps.map(({ icon: Icon, label, detail }, index) => <div className="relative flex flex-1 flex-col items-center gap-3 text-center" key={label}>{index < steps.length - 1 && <span className="absolute left-1/2 top-5 h-px w-full bg-ink/10" />}<span className="relative z-10 grid size-10 place-items-center rounded-full border border-ink/10 bg-paper text-ink/60"><Icon size={17} /></span><span className="text-[12px] font-semibold">{label}</span><span className="text-[10px] text-ink/40">{detail}</span></div>)}</div>; }

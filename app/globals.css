@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --font-sora: 'Sora', sans-serif;
+    --font-space-mono: 'DM Mono', monospace;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #f5f5f0;
+    color: #19221f;
+    font-family: var(--font-sora);
+}
+
+::selection {
+    background: #ff735e;
+    color: white;
+}
+
+.grid-paper {
+    background-image: linear-gradient(rgba(25, 34, 31, .045) 1px, transparent 1px), linear-gradient(90deg, rgba(25, 34, 31, .045) 1px, transparent 1px);
+    background-size: 36px 36px;
+}
+
+.noise {
+    position: relative;
+    isolation: isolate;
+}
+
+.noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: .42;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E");
+}
