@@ -33,12 +33,6 @@ export interface VerificationResult {
   audit?: string;
   expectedHash?: string;
   computedHash?: string;
-  c2pa?: {
-    status: 'verified' | 'invalid' | 'not-found' | 'unsupported';
-    embedded: boolean;
-    activeManifest?: unknown;
-    error?: string;
-  };
 }
 
 export interface HeuristicReportData {

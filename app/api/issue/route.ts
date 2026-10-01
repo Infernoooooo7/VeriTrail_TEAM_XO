@@ -58,7 +58,8 @@ export async function POST(request: Request) {
     };
 
     // 5. Embed the manifest when possible. Other safe file types use a detached manifest.
-    const sealedFileBuffer = isPdf ? await injectManifestIntoPdf(originalBuffer, manifest) : originalBuffer;
+    const metadataFileBuffer = isPdf ? await injectManifestIntoPdf(originalBuffer, manifest) : originalBuffer;
+    const sealedFileBuffer = metadataFileBuffer;
 
     // 6. Record in Neon DB (if connected)
     const dbRecord = await recordIssuedDocument({

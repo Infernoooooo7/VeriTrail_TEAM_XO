@@ -157,7 +157,7 @@ export default function IssuePage() {
           <div className="mt-8">
             {issuedResult ? (
               <div className="flex flex-col items-center rounded-2xl border border-mint/30 bg-mint/10 p-6 sm:p-10 text-center">
-                <span className="grid size-14 place-items-center rounded-full bg-mint text-white shadow-md">
+                <span className="grid size-14 place-items-center rounded-full bg-mint/20 text-mint-ink shadow-md shadow-mint/10">
                   <Check size={28} />
                 </span>
                 <h2 className="mt-5 text-xl font-semibold text-ink">
@@ -209,7 +209,7 @@ export default function IssuePage() {
                   <a
                     href={issuedResult.blobUrl}
                     download={issuedResult.fileName}
-                    className="flex items-center gap-2 rounded-full bg-ink px-6 py-3.5 text-xs font-semibold text-black shadow-md hover:bg-ink/90 transition"
+                    className="flex items-center gap-2 rounded-full bg-ink px-6 py-3.5 text-xs font-semibold text-white shadow-md hover:bg-ink/90 transition"
                   >
                     <Download size={16} /> Download Issued File
                   </a>
@@ -377,7 +377,7 @@ export default function IssuePage() {
                   <button
                     type="submit"
                     disabled={!file || loading}
-                    className="flex shrink-0 items-center gap-2 rounded-full bg-coral px-6 py-3.5 text-xs font-semibold text-black transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-40 shadow-sm cursor-pointer"
+                    className="flex shrink-0 items-center gap-2 rounded-full bg-coral px-6 py-3.5 text-xs font-semibold text-white transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-40 shadow-sm cursor-pointer"
                   >
                     {loading ? (
                       <>

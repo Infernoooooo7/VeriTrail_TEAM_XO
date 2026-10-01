@@ -35,7 +35,6 @@ export default function VerifyPage() {
   const [expectedHash, setExpectedHash] = useState<string | null>(null);
   const [computedHash, setComputedHash] = useState<string | null>(null);
   const [heuristicReport, setHeuristicReport] = useState<HeuristicReportData | null>(null);
-  const [c2paStatus, setC2paStatus] = useState<'verified' | 'invalid' | 'not-found' | 'unsupported'>('not-found');
   const [error, setError] = useState<string | null>(null);
   // System-level AI service availability — kept strictly separate from forensic state
   const [geminiUnavailable, setGeminiUnavailable] = useState(false);
@@ -115,7 +114,6 @@ export default function VerifyPage() {
       }
 
       const result = await response.json();
-      setC2paStatus(result.c2pa?.status || 'not-found');
 
       if (result.status === 'VERIFIED') {
         setState('verified');
@@ -165,7 +163,6 @@ export default function VerifyPage() {
     setExpectedHash(null);
     setComputedHash(null);
     setHeuristicReport(null);
-    setC2paStatus('not-found');
     setError(null);
     setGeminiUnavailable(false);
     setGeminiUnavailableMsg(undefined);
@@ -289,20 +286,19 @@ export default function VerifyPage() {
 
               {/* Verified Certificate Fingerprint Card */}
               {state === 'verified' && manifest && (
-                <div className="mt-4 rounded-3xl border border-ink/10 bg-ink p-6 text-black shadow-md">
+                <div className="mt-4 rounded-3xl border border-ink/10 bg-ink p-6 text-white shadow-md">
                   <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
                     <p className="font-mono text-[10px] uppercase tracking-[.2em] text-mint">
                       Cryptographic Chain of Custody
                     </p>
-                    <span className="flex items-center gap-1 text-[10px] font-mono text-black/50">
+                    <span className="flex items-center gap-1 text-[10px] font-mono text-white/60">
                       <KeyRound size={12} className="text-mint" /> Ed25519 Valid
                     </span>
                   </div>
-                  <p className="mb-4 font-mono text-[10px] uppercase tracking-wider text-black/45">C2PA: {c2paStatus.replace('-', ' ')}</p>
 
                   <div className="space-y-3 font-mono text-xs">
                     <div>
-                      <span className="block text-[10px] text-black/40 uppercase">Content SHA-256 Digest</span>
+                      <span className="block text-[10px] text-white/45 uppercase">Content SHA-256 Digest</span>
                       <p className="break-all font-mono text-xs text-mint mt-0.5">
                         {manifest.vtr_content_hash || manifest.contentDigest}
                       </p>
@@ -310,12 +306,12 @@ export default function VerifyPage() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-white/10 text-[11px]">
                       <div>
-                        <span className="block text-[10px] text-black/40 uppercase">Document ID</span>
-                        <span className="text-black/80">{manifest.vtr_doc_id}</span>
+                        <span className="block text-[10px] text-white/45 uppercase">Document ID</span>
+                        <span className="text-white/85">{manifest.vtr_doc_id}</span>
                       </div>
                       <div>
-                        <span className="block text-[10px] text-black/40 uppercase">Issuance Timestamp</span>
-                        <span className="text-black/80">
+                        <span className="block text-[10px] text-white/45 uppercase">Issuance Timestamp</span>
+                        <span className="text-white/85">
                           {manifest.vtr_timestamp ? new Date(manifest.vtr_timestamp).toLocaleString() : 'N/A'}
                         </span>
                       </div>
