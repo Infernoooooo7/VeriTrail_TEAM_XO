@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { computeSHA256, getIssuerKeyPair, signDigest } from '@/lib/crypto';
 import { injectManifestIntoPdf } from '@/lib/pdf-metadata';
 import { recordIssuedDocument } from '@/lib/db';
+import { validateUpload } from '@/lib/file-policy';
 import type { DocumentManifest } from '@/types';
 
 export async function POST(request: Request) {
@@ -21,6 +22,11 @@ export async function POST(request: Request) {
 
     const arrayBuffer = await file.arrayBuffer();
     const originalBuffer = Buffer.from(arrayBuffer);
+
+    const rejection = validateUpload(file.name, originalBuffer);
+    if (rejection) return NextResponse.json({ error: rejection }, { status: 415 });
+
+    const isPdf = file.type === 'application/pdf' || originalBuffer.subarray(0, 5).toString() === '%PDF-';
 
     // 1. Compute canonical SHA-256 hash of original document
     const contentHash = computeSHA256(originalBuffer);
@@ -51,8 +57,8 @@ export async function POST(request: Request) {
       issuer: issuerId,
     };
 
-    // 5. Inject Manifest & Visual Footer Ribbon into PDF
-    const sealedPdfBuffer = await injectManifestIntoPdf(originalBuffer, manifest);
+    // 5. Embed the manifest when possible. Other safe file types use a detached manifest.
+    const sealedFileBuffer = isPdf ? await injectManifestIntoPdf(originalBuffer, manifest) : originalBuffer;
 
     // 6. Record in Neon DB (if connected)
     const dbRecord = await recordIssuedDocument({
@@ -80,13 +86,16 @@ export async function POST(request: Request) {
         signature,
         manifest,
         dbSaved: Boolean(dbRecord),
-        sealedPdfBase64: sealedPdfBuffer.toString('base64'),
+        sealedPdfBase64: isPdf ? sealedFileBuffer.toString('base64') : undefined,
+        sealedFileBase64: sealedFileBuffer.toString('base64'),
+        fileType: file.type || 'application/octet-stream',
+        manifestDetached: !isPdf,
       });
     }
 
     // Default: Return downloadable sealed PDF binary
     const headers = new Headers();
-    headers.set('Content-Type', 'application/pdf');
+    headers.set('Content-Type', file.type || 'application/octet-stream');
     headers.set(
       'Content-Disposition',
       `attachment; filename="sealed_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}"`
@@ -95,7 +104,7 @@ export async function POST(request: Request) {
     headers.set('x-veritrail-hash', contentHash);
     headers.set('Access-Control-Expose-Headers', 'x-veritrail-doc-id, x-veritrail-hash');
 
-    return new NextResponse(new Uint8Array(sealedPdfBuffer), {
+    return new NextResponse(new Uint8Array(sealedFileBuffer), {
       status: 200,
       headers,
     });

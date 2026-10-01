@@ -25,6 +25,7 @@ import type { VerificationState, DocumentManifest, HeuristicReportData } from '@
 export default function VerifyPage() {
   const [state, setState] = useState<VerificationState>('pending');
   const [file, setFile] = useState<File>();
+  const [docId, setDocId] = useState('');
   const [loading, setLoading] = useState(false);
   const [verifyingText, setVerifyingText] = useState('Verifying document...');
   const [manifest, setManifest] = useState<DocumentManifest | null>(null);
@@ -33,6 +34,7 @@ export default function VerifyPage() {
   const [expectedHash, setExpectedHash] = useState<string | null>(null);
   const [computedHash, setComputedHash] = useState<string | null>(null);
   const [heuristicReport, setHeuristicReport] = useState<HeuristicReportData | null>(null);
+  const [c2paStatus, setC2paStatus] = useState<'verified' | 'invalid' | 'not-found' | 'unsupported'>('not-found');
   const [error, setError] = useState<string | null>(null);
 
   const inspect = async (selected: File) => {
@@ -50,6 +52,7 @@ export default function VerifyPage() {
     try {
       const formData = new FormData();
       formData.append('file', selected);
+      if (docId.trim()) formData.append('docId', docId.trim());
 
       // 1. Call verification endpoint
       const response = await fetch('/api/verify', {
@@ -63,6 +66,7 @@ export default function VerifyPage() {
       }
 
       const result = await response.json();
+      setC2paStatus(result.c2pa?.status || 'not-found');
 
       if (result.status === 'VERIFIED') {
         setState('verified');
@@ -116,12 +120,14 @@ export default function VerifyPage() {
   const reset = () => {
     setState('pending');
     setFile(undefined);
+    setDocId('');
     setManifest(null);
     setDbRecord(null);
     setReason(null);
     setExpectedHash(null);
     setComputedHash(null);
     setHeuristicReport(null);
+    setC2paStatus('not-found');
     setError(null);
   };
 
@@ -143,7 +149,7 @@ export default function VerifyPage() {
             Does it hold up?
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-6 text-ink/50">
-            Drop in any PDF to inspect its embedded manifest, verify its Ed25519 digital signature against the content digest, and check chain of custody in Neon DB.
+            Drop in any safe file to inspect its embedded manifest, verify its Ed25519 signature, and check its chain of custody in Neon DB. Non-PDF files can use the issued document ID as a detached proof reference.
           </p>
         </div>
 
@@ -166,7 +172,8 @@ export default function VerifyPage() {
             </div>
           ) : state === 'pending' ? (
             <div className="mt-6">
-              <Dropzone onFile={inspect} />
+              <label className="mb-3 block text-xs font-medium text-ink/60">Detached document ID <span className="font-normal text-ink/35">(optional for files without embedded metadata)</span><input value={docId} onChange={(event) => setDocId(event.target.value)} placeholder="vtr_..." className="mt-2 w-full rounded-xl border border-ink/10 bg-white/70 px-3 py-2.5 font-mono text-xs outline-none focus:border-coral/50" /></label>
+              <Dropzone onFile={inspect} onError={(message) => setError(message)} />
             </div>
           ) : (
             <>
@@ -184,7 +191,7 @@ export default function VerifyPage() {
                   </div>
                   <p className="mt-3 truncate text-xs font-semibold">{file?.name}</p>
                   <p className="mt-1 text-[10px] text-ink/40">
-                    PDF · {((file?.size ?? 0) / 1024 / 1024).toFixed(2)} MB
+                    {file?.type || 'Unknown file'} · {((file?.size ?? 0) / 1024 / 1024).toFixed(2)} MB
                   </p>
                 </div>
 
@@ -241,6 +248,7 @@ export default function VerifyPage() {
                       <KeyRound size={12} className="text-mint" /> Ed25519 Valid
                     </span>
                   </div>
+                  <p className="mb-4 font-mono text-[10px] uppercase tracking-wider text-black/45">C2PA: {c2paStatus.replace('-', ' ')}</p>
 
                   <div className="space-y-3 font-mono text-xs">
                     <div>

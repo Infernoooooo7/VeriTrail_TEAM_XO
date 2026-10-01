@@ -36,6 +36,7 @@ export default function IssuePage() {
     fileName: string;
     signature?: string;
     dbSaved?: boolean;
+    mimeType?: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,18 +83,18 @@ export default function IssuePage() {
 
       const data = await response.json();
 
-      if (!data.success || !data.sealedPdfBase64) {
-        throw new Error(data.error || 'Failed to generate sealed PDF document.');
+      if (!data.success || !data.sealedFileBase64) {
+        throw new Error(data.error || 'Failed to generate the issued file.');
       }
 
       // Convert base64 to Blob URL safely
-      const binaryStr = window.atob(data.sealedPdfBase64);
+      const binaryStr = window.atob(data.sealedFileBase64);
       const len = binaryStr.length;
       const bytes = new Uint8Array(len);
       for (let i = 0; i < len; i++) {
         bytes[i] = binaryStr.charCodeAt(i);
       }
-      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const blob = new Blob([bytes], { type: data.fileType || file.type || 'application/octet-stream' });
       const blobUrl = URL.createObjectURL(blob);
       const outputFileName = `sealed_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
 
@@ -104,6 +105,7 @@ export default function IssuePage() {
         fileName: outputFileName,
         signature: data.signature,
         dbSaved: data.dbSaved,
+        mimeType: data.fileType,
       });
     } catch (err: any) {
       console.error('Issuance error:', err);
@@ -139,7 +141,7 @@ export default function IssuePage() {
             Make it verifiable.
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-6 text-ink/50">
-            Create a tamper-evident cryptographic record for a PDF. VeriTrail hashes original bytes, signs the digest with Ed25519, stores the ledger entry in Neon DB, and embeds the proof & ribbon into the document.
+            Create a tamper-evident cryptographic record for any safe file. VeriTrail hashes the original bytes, signs the digest with Ed25519, stores the ledger entry in Neon DB, and embeds the proof when the format supports metadata.
           </p>
         </div>
 
@@ -209,7 +211,7 @@ export default function IssuePage() {
                     download={issuedResult.fileName}
                     className="flex items-center gap-2 rounded-full bg-ink px-6 py-3.5 text-xs font-semibold text-black shadow-md hover:bg-ink/90 transition"
                   >
-                    <Download size={16} /> Download Encrypted & Sealed PDF
+                    <Download size={16} /> Download Issued File
                   </a>
                   <Link
                     href="/verify"
@@ -236,7 +238,7 @@ export default function IssuePage() {
                       <div className="text-xs">
                         <p className="font-semibold text-ink">1. Computed Original SHA-256 Hash</p>
                         <p className="text-ink/60 text-[11px] leading-relaxed">
-                          Calculated a cryptographic checksum over the unaltered original PDF bytes to establish an immutable base fingerprint.
+                          Calculated a cryptographic checksum over the unaltered original bytes to establish an immutable base fingerprint.
                         </p>
                       </div>
                     </div>
@@ -260,7 +262,7 @@ export default function IssuePage() {
                       <div className="text-xs">
                         <p className="font-semibold text-ink">3. Non-Destructive Manifest Injection</p>
                         <p className="text-ink/60 text-[11px] leading-relaxed">
-                          Embedded JSON-LD metadata into the PDF structure containing Document ID, Candidate details, Issuer ID, public key, and signature.
+                          Embedded the signed manifest when the file format supports metadata; otherwise the manifest is kept as a detached registry record.
                         </p>
                       </div>
                     </div>
@@ -301,7 +303,7 @@ export default function IssuePage() {
               </div>
             ) : (
               <form onSubmit={handleIssue}>
-                <Dropzone onFile={setFile} />
+                <Dropzone onFile={setFile} onError={(message) => setError(message)} />
 
                 {file && (
                   <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-xl border border-ink/10 bg-white/70 p-4">
