@@ -19,7 +19,7 @@ export function HeuristicReport({ report }: { report: HeuristicReportData }) {
     <div className="mt-6 rounded-2xl border border-amber/20 bg-amber/5 p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
-          <Sparkles size={18} className="text-amber-600" /> Gemini 2.5 Flash Forensic Inspection
+          <Sparkles size={18} className="text-amber-600" /> Gemini 3.8 Flash Forensic Inspection
         </div>
         <div className="flex items-center gap-2">
           <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${riskBadge.bg}`}>

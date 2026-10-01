@@ -73,6 +73,19 @@ export async function POST(request: Request) {
       });
     }
 
+    if (dbRecord && dbRecord.contentDigest && vtr_content_hash && dbRecord.contentDigest !== vtr_content_hash) {
+      return NextResponse.json({
+        status: 'TAMPERED',
+        state: 'tampered',
+        reason: 'CONTENT_HASH_MISMATCH',
+        message: 'Document content digest does not match the registered ledger hash.',
+        manifest,
+        dbRecord,
+        expectedHash: dbRecord.contentDigest,
+        computedHash: vtr_content_hash,
+      });
+    }
+
     // 5. Hash & Signature match confirmed
     return NextResponse.json({
       status: 'VERIFIED',

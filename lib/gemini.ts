@@ -54,14 +54,30 @@ You MUST output valid JSON matching this exact JSON schema:
         `Perform digital forensics on document "${fileName || 'untracked.pdf'}" to detect font inconsistency, compression artifacts, or content editing.`
     );
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents,
-      config: {
-        systemInstruction,
-        responseMimeType: 'application/json',
-      },
-    });
+    const modelsToTry = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash'];
+    let response: any = null;
+    let lastError: any = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        response = await ai.models.generateContent({
+          model: modelName,
+          contents,
+          config: {
+            systemInstruction,
+            responseMimeType: 'application/json',
+          },
+        });
+        if (response) break;
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`Model ${modelName} call failed, trying fallback model...`, err.message);
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error('All Gemini model candidates failed to respond.');
+    }
 
     const responseText = response.text || '{}';
     const parsed = JSON.parse(responseText);
