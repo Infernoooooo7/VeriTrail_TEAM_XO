@@ -1,41 +1,103 @@
 import { NextResponse } from 'next/server';
-import { sha256 } from '@/lib/crypto';
+import { computeSHA256, getIssuerKeyPair, signDigest } from '@/lib/crypto';
+import { injectManifestIntoPdf } from '@/lib/pdf-metadata';
 import { recordIssuedDocument } from '@/lib/db';
+import type { DocumentManifest } from '@/types';
 
 export async function POST(request: Request) {
   try {
-    const form = await request.formData();
-    const file = form.get('file');
+    const formData = await request.formData();
+    const file = formData.get('file');
+    const candidateName = (formData.get('candidateName') as string) || 'Jane Doe';
+    const candidateId = (formData.get('candidateId') as string) || 'CAND-88421';
+    const issuerId = (formData.get('issuerId') as string) || 'VeriTrail Authority';
 
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: 'A PDF is required.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'A valid PDF document file is required.' },
+        { status: 400 }
+      );
     }
 
     const arrayBuffer = await file.arrayBuffer();
-    const digest = sha256(Buffer.from(arrayBuffer));
-    const issuedAt = new Date().toISOString();
+    const originalBuffer = Buffer.from(arrayBuffer);
 
-    const manifest = {
+    // 1. Compute canonical SHA-256 hash of original document
+    const contentHash = computeSHA256(originalBuffer);
+
+    // 2. Obtain Issuer KeyPair & Sign Hash
+    const keyPair = getIssuerKeyPair();
+    const signature = signDigest(contentHash, keyPair.privateKeyHex);
+
+    // 3. Generate Unique Document ID & Timestamp
+    const docId = crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+
+    // 4. Construct Document Manifest
+    const manifest: DocumentManifest = {
+      vtr_doc_id: docId,
+      vtr_issuer_id: issuerId,
+      vtr_candidate: candidateName,
+      vtr_candidate_id: candidateId,
+      vtr_content_hash: contentHash,
+      vtr_signature: signature,
+      vtr_public_key: keyPair.publicKeyHex,
+      vtr_timestamp: timestamp,
+      // Compatibility fields
       version: '1.0',
       documentName: file.name,
-      contentDigest: digest,
-      issuedAt,
-      issuer: 'VeriTrail',
+      contentDigest: contentHash,
+      issuedAt: timestamp,
+      issuer: issuerId,
     };
 
-    // Save manifest to Neon DB if configured
+    // 5. Inject Manifest & Visual Footer Ribbon into PDF
+    const sealedPdfBuffer = await injectManifestIntoPdf(originalBuffer, manifest);
+
+    // 6. Record in Neon DB (if connected)
     const dbRecord = await recordIssuedDocument({
-      contentDigest: digest,
+      docId,
+      contentDigest: contentHash,
+      signature,
+      candidateName,
+      candidateId,
+      issuerId,
       documentName: file.name,
-      issuer: 'VeriTrail',
+      issuer: issuerId,
       version: '1.0',
       manifest,
     });
 
-    return NextResponse.json({
-      manifest,
-      digest,
-      dbSaved: Boolean(dbRecord),
+    // Check if caller explicitly requested JSON
+    const url = new URL(request.url);
+    const wantsJson = url.searchParams.get('json') === 'true' || request.headers.get('accept')?.includes('application/json');
+
+    if (wantsJson) {
+      return NextResponse.json({
+        success: true,
+        docId,
+        contentHash,
+        signature,
+        manifest,
+        dbSaved: Boolean(dbRecord),
+        sealedPdfBase64: sealedPdfBuffer.toString('base64'),
+      });
+    }
+
+    // Default: Return downloadable sealed PDF binary
+    const headers = new Headers();
+    headers.set('Content-Type', 'application/pdf');
+    headers.set(
+      'Content-Disposition',
+      `attachment; filename="sealed_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}"`
+    );
+    headers.set('x-veritrail-doc-id', docId);
+    headers.set('x-veritrail-hash', contentHash);
+    headers.set('Access-Control-Expose-Headers', 'x-veritrail-doc-id, x-veritrail-hash');
+
+    return new NextResponse(new Uint8Array(sealedPdfBuffer), {
+      status: 200,
+      headers,
     });
   } catch (error: any) {
     console.error('Error issuing document:', error);
